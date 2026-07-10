@@ -110,12 +110,16 @@
       .from(".hero__rating", { y: 18, opacity: 0, duration: 0.7 }, "-=0.4")
       .from(".hero__scroll", { opacity: 0, duration: 0.8 }, "-=0.3");
 
-    // Parallax do fundo do hero (imagem + vídeo se movem juntos)
-    gsap.to(".hero__bg", {
-      yPercent: 10,
-      ease: "none",
-      scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true },
-    });
+    // Parallax do fundo do hero (imagem + vídeo se movem juntos).
+    // No mobile o fundo vira uma faixa no fluxo da página, então o
+    // deslocamento a empurraria por cima do texto — desativado lá.
+    if (window.matchMedia("(min-width: 641px)").matches) {
+      gsap.to(".hero__bg", {
+        yPercent: 10,
+        ease: "none",
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true },
+      });
+    }
 
     // Parallax do CTA final
     gsap.fromTo(

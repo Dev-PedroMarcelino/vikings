@@ -2119,40 +2119,50 @@ section .section__kicker:has(+ .section__title--center) { text-align: center; }
   .location__map iframe { height: 380px; }
 }
 
-/* ── Hero no celular: vídeo 16:9 inteiro, sem cortes ─────
-   Com "cover" num celular em pé só ~30% do vídeo aparecia.
-   Aqui o vídeo é exibido por completo (letterbox) na parte de
-   cima, a imagem vira um pano de fundo desfocado e o texto
-   desce para a base, deixando o vídeo à mostra. */
+/* ── Hero no celular: vídeo vira faixa 16:9 no fluxo ─────
+   Com "cover" num celular em pé só ~30% do vídeo aparecia, e
+   sobrepor texto ao vídeo quebrava em telas menores. Aqui o
+   fundo deixa de ser absoluto: vira uma faixa 16:9 no topo
+   (vídeo inteiro, sem corte) e o texto flui logo abaixo —
+   nunca um por cima do outro, em qualquer altura de tela.   */
 @media (max-width: 640px) {
-  .hero { align-items: flex-end; }
-
-  .hero__video {
-    object-fit: contain;
-    object-position: center 22%;
+  .hero {
+    display: block;
+    min-height: 100svh;
+    padding-top: 84px; /* compensa o header fixo */
   }
 
-  /* A foto vira ambiente desfocado atrás do vídeo letterbox */
-  .hero.has-video .hero__img {
-    filter: blur(14px) brightness(0.45);
-    transform: scale(1.12);
+  .hero__bg {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    z-index: 0;
   }
-
-  /* Menos escurecimento na faixa onde o vídeo aparece */
-  .hero__overlay {
+  /* Fade suave nas bordas da faixa do vídeo */
+  .hero__bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
     background: linear-gradient(
       180deg,
-      rgba(10, 10, 10, 0.6) 0%,
+      rgba(10, 10, 10, 0.45) 0%,
       rgba(10, 10, 10, 0) 22%,
-      rgba(10, 10, 10, 0) 52%,
-      rgba(10, 10, 10, 0.88) 82%,
-      rgba(10, 10, 10, 0.94) 100%
+      rgba(10, 10, 10, 0) 78%,
+      rgba(10, 10, 10, 0.6) 100%
     );
   }
+  .hero__video { object-position: center; }
+  .hero__img { animation: none; }
+
+  /* O overlay e a fumaça eram para o fundo em tela cheia */
+  .hero__overlay, .hero__smoke { display: none; }
 
   .hero__content {
-    padding-top: 0;
-    padding-bottom: 3.2rem;
+    padding-top: 1.8rem;
+    padding-bottom: 3.5rem;
   }
   .hero__runes { margin-bottom: 0.9rem; }
   .hero__kicker { margin-bottom: 0.8rem; }
@@ -2166,7 +2176,7 @@ section .section__kicker:has(+ .section__title--center) { text-align: center; }
   }
   .hero__actions { margin-bottom: 1.2rem; }
 
-  /* Com o conteúdo ancorado na base, o indicador sobrepõe os botões */
+  /* Sem tela cheia fixa, o indicador de scroll perde o sentido */
   .hero__scroll { display: none; }
 }
 
