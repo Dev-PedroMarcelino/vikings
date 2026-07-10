@@ -61,7 +61,10 @@
       if (!target) return;
       e.preventDefault();
       if (lenis) {
-        lenis.scrollTo(target, { offset: -80 });
+        // Blocos do cardápio ficam sob o header + a barra sticky de
+        // categorias, então precisam de um offset maior
+        const offset = target.classList.contains("menu__block") ? -130 : -80;
+        lenis.scrollTo(target, { offset });
       } else {
         target.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
       }
@@ -294,9 +297,12 @@
     inlineVideos.forEach((v) => videoObserver.observe(v));
   }
 
-  /* ── Vídeo do hero: loop com crossfade suave ──────────── */
+  /* ── Vídeo do hero: loop com crossfade suave ──────────────
+     Roda mesmo com prefers-reduced-motion: o vídeo é o fundo da
+     marca (sem ele só resta a imagem estática) e sem este bloco
+     ele ficava eternamente com opacity 0, baixando à toa.        */
   const heroVideo = document.getElementById("heroVideo") as HTMLVideoElement | null;
-  if (heroVideo && !prefersReducedMotion) {
+  if (heroVideo) {
     heroVideo.removeAttribute("loop"); // o loop nativo dá corte seco
     const hero = document.querySelector<HTMLElement>(".hero");
     const FADE_AHEAD = 1.0;
@@ -383,6 +389,52 @@
       },
       { threshold: 0 }
     ).observe(hero as Element);
+  }
+
+  /* ── Reel "vikings def": vídeo → logo → vídeo, em loop ────
+     Quando o vídeo termina, a logo entra com um efeito de
+     revelação; após um intervalo, o vídeo recomeça do zero.     */
+  const reel = document.getElementById("reel");
+  const reelVideo = document.getElementById("reelVideo") as HTMLVideoElement | null;
+  if (reel && reelVideo) {
+    const LOGO_MS = 3200; // tempo da logo em cena antes do vídeo voltar
+    let logoTimer = 0;
+    let reelVisible = !("IntersectionObserver" in window);
+
+    reelVideo.addEventListener("ended", () => {
+      reel.classList.add("is-logo");
+      window.clearTimeout(logoTimer);
+      logoTimer = window.setTimeout(() => {
+        reel.classList.remove("is-logo");
+        reelVideo.currentTime = 0;
+        if (reelVisible) {
+          const p = reelVideo.play();
+          if (p) p.catch(() => undefined);
+        }
+      }, LOGO_MS);
+    });
+
+    // Toca só quando a seção está visível (sem brigar com o interlúdio)
+    const playIfIdle = (): void => {
+      if (!reelVisible || reel.classList.contains("is-logo")) return;
+      const p = reelVideo.play();
+      if (p) p.catch(() => undefined);
+    };
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(
+        ([entry]) => {
+          reelVisible = entry.isIntersecting;
+          if (reelVisible) {
+            playIfIdle();
+          } else {
+            reelVideo.pause();
+          }
+        },
+        { threshold: 0.3 }
+      ).observe(reel);
+    } else {
+      playIfIdle();
+    }
   }
 
   /* ── Brasas: partículas no hero ───────────────────────── */
