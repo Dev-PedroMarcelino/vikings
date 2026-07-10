@@ -466,7 +466,7 @@ section .section__kicker:has(+ .section__title--center) { text-align: center; }
 .hero__title {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(2.6rem, 7.5vw, 5.6rem);
+  font-size: clamp(2.2rem, 6.5vw, 4.8rem);
   line-height: 1.05;
   letter-spacing: 0.01em;
   margin-bottom: 1.6rem;
@@ -2117,6 +2117,57 @@ section .section__kicker:has(+ .section__title--center) { text-align: center; }
   .drinks__grid { grid-template-columns: 1fr; }
   .menu__nav { top: 56px; }
   .location__map iframe { height: 380px; }
+}
+
+/* ── Hero no celular: vídeo 16:9 inteiro, sem cortes ─────
+   Com "cover" num celular em pé só ~30% do vídeo aparecia.
+   Aqui o vídeo é exibido por completo (letterbox) na parte de
+   cima, a imagem vira um pano de fundo desfocado e o texto
+   desce para a base, deixando o vídeo à mostra. */
+@media (max-width: 640px) {
+  .hero { align-items: flex-end; }
+
+  .hero__video {
+    object-fit: contain;
+    object-position: center 22%;
+  }
+
+  /* A foto vira ambiente desfocado atrás do vídeo letterbox */
+  .hero.has-video .hero__img {
+    filter: blur(14px) brightness(0.45);
+    transform: scale(1.12);
+  }
+
+  /* Menos escurecimento na faixa onde o vídeo aparece */
+  .hero__overlay {
+    background: linear-gradient(
+      180deg,
+      rgba(10, 10, 10, 0.6) 0%,
+      rgba(10, 10, 10, 0) 22%,
+      rgba(10, 10, 10, 0) 52%,
+      rgba(10, 10, 10, 0.88) 82%,
+      rgba(10, 10, 10, 0.94) 100%
+    );
+  }
+
+  .hero__content {
+    padding-top: 0;
+    padding-bottom: 3.2rem;
+  }
+  .hero__runes { margin-bottom: 0.9rem; }
+  .hero__kicker { margin-bottom: 0.8rem; }
+  .hero__title {
+    font-size: clamp(1.85rem, 8.5vw, 2.3rem);
+    margin-bottom: 1rem;
+  }
+  .hero__subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 1.6rem;
+  }
+  .hero__actions { margin-bottom: 1.2rem; }
+
+  /* Com o conteúdo ancorado na base, o indicador sobrepõe os botões */
+  .hero__scroll { display: none; }
 }
 
 @media (max-width: 560px) {
