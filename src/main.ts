@@ -522,22 +522,34 @@
   }
 
   /* ── Scrollspy das categorias do cardápio ─────────────── */
+  /* ── Filtro do cardápio ──────────────────────────────── */
   const pills = document.querySelectorAll<HTMLAnchorElement>(".menu__pill");
   const blocks = document.querySelectorAll<HTMLElement>(".menu__block");
-  if (pills.length && "IntersectionObserver" in window) {
-    const spy = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          pills.forEach((p) =>
-            p.classList.toggle("is-active", p.getAttribute("href") === "#" + entry.target.id)
-          );
-        });
-      },
-      { rootMargin: "-35% 0px -55% 0px" }
-    );
-    blocks.forEach((b) => spy.observe(b));
+
+  function filterMenu(filter: string) {
+    blocks.forEach((b) => {
+      b.style.display = (filter === "all" || b.id === filter) ? "" : "none";
+    });
+    if (window.AOS) {
+      setTimeout(() => window.AOS!.refresh(), 50);
+    }
   }
+
+  pills.forEach((pill) => {
+    pill.addEventListener("click", (e) => {
+      e.preventDefault();
+      const filter = pill.dataset.filter || "all";
+      pills.forEach((p) => p.classList.remove("is-active"));
+      pill.classList.add("is-active");
+      filterMenu(filter);
+      const target = filter === "all"
+        ? document.getElementById("cardapio")
+        : document.getElementById(filter);
+      if (target) {
+        lenis?.scrollTo(target, { offset: -100 });
+      }
+    });
+  });
 
   /* ── Carrossel de depoimentos ─────────────────────────── */
   const track = document.getElementById("carouselTrack");
@@ -624,12 +636,538 @@
     }
   }
 
-  /* ── WhatsApp: mensagem personalizada por produto ─────── */
-  const WHATS_BASE = "https://wa.me/5519996979642?text=";
-  document.querySelectorAll<HTMLAnchorElement>("[data-item]").forEach((btn) => {
-    const msg = `Olá! Vim pelo site e quero pedir: ${btn.dataset.item} 🍔`;
-    btn.href = WHATS_BASE + encodeURIComponent(msg);
+  /* ═══ MÓDULO DE PEDIDOS ═══════════════════════════════════ */
+
+  interface CartAddon { name: string; price: number; }
+  interface CartItem {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    addons: CartAddon[];
+    img: string;
+  }
+
+  const WHATS_NUMBER = "5519996979642";
+  const WHATS_BASE = `https://wa.me/${WHATS_NUMBER}?text=`;
+  const CART_KEY = "vikings-cart";
+  const cart: CartItem[] = loadCart();
+
+  /* ── Helpers ─────────────────────────────────────────── */
+  function fmt(v: number): string {
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function parseAddons(raw: string | undefined): CartAddon[] {
+    if (!raw) return [];
+    return raw.split(",").map((s) => {
+      const [name, price] = s.split(":");
+      return { name: name.trim(), price: Number(price) || 0 };
+    });
+  }
+
+  function itemTotal(item: CartItem): number {
+    const addonsTotal = item.addons.reduce((s, a) => s + a.price, 0);
+    return (item.price + addonsTotal) * item.quantity;
+  }
+
+  function cartTotal(): number {
+    return cart.reduce((s, i) => s + itemTotal(i), 0);
+  }
+
+  function cartCount(): number {
+    return cart.reduce((s, i) => s + i.quantity, 0);
+  }
+
+  function findCartIndex(id: string, addons: CartAddon[]): number {
+    return cart.findIndex((c) => {
+      if (c.id !== id) return false;
+      if (c.addons.length !== addons.length) return false;
+      const aNames = c.addons.map((a) => a.name).sort();
+      const bNames = addons.map((a) => a.name).sort();
+      return aNames.every((n, i) => n === bNames[i]);
+    });
+  }
+
+  /* ── Persistência ──────────────────────────────────────── */
+  function saveCart(): void {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {}
+  }
+  function loadCart(): CartItem[] {
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  /* ── DOM refs ────────────────────────────────────────── */
+  const addonModal = document.getElementById("addonModal")!;
+  const addonModalClose = document.getElementById("addonModalClose")!;
+  const addonModalMedia = document.getElementById("addonModalMedia")!;
+  const addonModalTitle = document.getElementById("addonModalTitle")!;
+  const addonModalPrice = document.getElementById("addonModalPrice")!;
+  const addonModalDesc = document.getElementById("addonModalDesc")!;
+  const addonModalAddons = document.getElementById("addonModalAddons")!;
+  const addonModalAddonsWrap = document.getElementById("addonModalAddonsWrap")!;
+  const addonQtyMinus = document.getElementById("addonQtyMinus")!;
+  const addonQtyPlus = document.getElementById("addonQtyPlus")!;
+  const addonQtyNum = document.getElementById("addonQtyNum")!;
+  const addonModalTotal = document.getElementById("addonModalTotal")!;
+  const addonModalConfirm = document.getElementById("addonModalConfirm")!;
+  const cartBar = document.getElementById("cartBar")!;
+  const cartBarCount = document.getElementById("cartBarCount")!;
+  const cartBarTotal = document.getElementById("cartBarTotal")!;
+  const cartBarOpen = document.getElementById("cartBarOpen")!;
+  const cartPanel = document.getElementById("cartPanel")!;
+  const cartPanelOverlay = document.getElementById("cartPanelOverlay")!;
+  const cartPanelClose = document.getElementById("cartPanelClose")!;
+  const cartPanelItems = document.getElementById("cartPanelItems")!;
+  const cartPanelTotal = document.getElementById("cartPanelTotal")!;
+  const cartPanelCheckout = document.getElementById("cartPanelCheckout")!;
+  const checkoutModal = document.getElementById("checkoutModal")!;
+  const checkoutModalClose = document.getElementById("checkoutModalClose")!;
+  const checkoutForm = document.getElementById("checkoutForm") as HTMLFormElement;
+  const checkoutSummary = document.getElementById("checkoutSummary")!;
+
+  /* ── Modal de Adicionais — state ─────────────────────── */
+  let modalItemId = "";
+  let modalItemName = "";
+  let modalItemPrice = 0;
+  let modalItemImg = "";
+  let modalItemDesc = "";
+  let modalAddons: CartAddon[] = [];
+  let modalSelectedAddons: CartAddon[] = [];
+  let modalQty = 1;
+
+  function openAddonModal(
+    id: string, name: string, price: number, img: string,
+    addonsRaw: string, desc?: string
+  ) {
+    modalItemId = id;
+    modalItemName = name;
+    modalItemPrice = price;
+    modalItemImg = img;
+    modalItemDesc = desc || "";
+    modalAddons = parseAddons(addonsRaw);
+    modalSelectedAddons = [];
+    modalQty = 1;
+
+    addonModalTitle.textContent = name;
+    addonModalPrice.textContent = fmt(price);
+    addonModalDesc.textContent = modalItemDesc;
+    addonModalDesc.style.display = modalItemDesc ? "" : "none";
+    addonQtyNum.textContent = "1";
+
+    if (img) {
+      addonModalMedia.innerHTML = `<img src="${img}" alt="${name}" />`;
+      addonModalMedia.style.display = "";
+    } else {
+      addonModalMedia.style.display = "none";
+    }
+
+    if (modalAddons.length > 0) {
+      addonModalAddonsWrap.style.display = "";
+      addonModalAddons.innerHTML = modalAddons.map((a) =>
+        `<button class="modal__addon-pill" data-addon-name="${a.name}" data-addon-price="${a.price}" type="button">
+          ${a.name} <span class="addon-price">${a.price > 0 ? `+${fmt(a.price)}` : "Grátis"}</span>
+        </button>`
+      ).join("");
+    } else {
+      addonModalAddonsWrap.style.display = "none";
+    }
+
+    updateModalTotal();
+    addonModal.hidden = false;
+    requestAnimationFrame(() => addonModal.classList.add("is-open"));
+  }
+
+  function closeAddonModal() {
+    addonModal.classList.remove("is-open");
+    setTimeout(() => { addonModal.hidden = true; }, 350);
+  }
+
+  function updateModalTotal() {
+    const addonsTotal = modalSelectedAddons.reduce((s, a) => s + a.price, 0);
+    const total = (modalItemPrice + addonsTotal) * modalQty;
+    addonModalTotal.textContent = fmt(total);
+  }
+
+  addonModalClose.addEventListener("click", closeAddonModal);
+  addonModal.addEventListener("click", (e) => {
+    if (e.target === addonModal) closeAddonModal();
   });
+
+  addonModalAddons.addEventListener("click", (e) => {
+    const pill = (e.target as HTMLElement).closest(".modal__addon-pill") as HTMLElement;
+    if (!pill) return;
+    const aName = pill.dataset.addonName!;
+    const aPrice = Number(pill.dataset.addonPrice) || 0;
+    const idx = modalSelectedAddons.findIndex((a) => a.name === aName);
+    if (idx >= 0) {
+      modalSelectedAddons.splice(idx, 1);
+      pill.classList.remove("is-active");
+    } else {
+      modalSelectedAddons.push({ name: aName, price: aPrice });
+      pill.classList.add("is-active");
+    }
+    updateModalTotal();
+  });
+
+  addonQtyMinus.addEventListener("click", () => {
+    if (modalQty > 1) { modalQty--; addonQtyNum.textContent = String(modalQty); updateModalTotal(); }
+  });
+  addonQtyPlus.addEventListener("click", () => {
+    if (modalQty < 99) { modalQty++; addonQtyNum.textContent = String(modalQty); updateModalTotal(); }
+  });
+
+  addonModalConfirm.addEventListener("click", () => {
+    addToCart(modalItemId, modalItemName, modalItemPrice, modalItemImg, modalSelectedAddons, modalQty);
+    closeAddonModal();
+  });
+
+  /* ── Carrinho — CRUD ─────────────────────────────────── */
+  function addToCart(
+    id: string, name: string, price: number, img: string,
+    addons: CartAddon[], qty: number
+  ) {
+    const idx = findCartIndex(id, addons);
+    if (idx >= 0) {
+      cart[idx].quantity += qty;
+    } else {
+      cart.push({ id, name, price, quantity: qty, addons: [...addons], img });
+    }
+    saveCart();
+    renderAll();
+  }
+
+  function updateCartQty(index: number, delta: number) {
+    cart[index].quantity += delta;
+    if (cart[index].quantity <= 0) cart.splice(index, 1);
+    saveCart();
+    renderAll();
+  }
+
+  function removeCartItem(index: number) {
+    cart.splice(index, 1);
+    saveCart();
+    renderAll();
+  }
+
+  /* ── Render ──────────────────────────────────────────── */
+  function renderAll() {
+    renderCartBar();
+    renderCartPanel();
+    renderCardButtons();
+    renderDrinkButtons();
+  }
+
+  function renderCartBar() {
+    const count = cartCount();
+    if (count > 0) {
+      cartBar.hidden = false;
+      cartBar.classList.add("is-visible");
+      cartBarCount.textContent = `${count} ${count === 1 ? "item" : "itens"}`;
+      cartBarTotal.textContent = fmt(cartTotal());
+    } else {
+      cartBar.classList.remove("is-visible");
+      setTimeout(() => { cartBar.hidden = true; }, 450);
+    }
+  }
+
+  function renderCartPanel() {
+    if (cart.length === 0) {
+      cartPanelItems.innerHTML = `<div class="cart-panel__empty"><div class="cart-panel__empty-icon">🛒</div><p>Seu carrinho está vazio</p></div>`;
+    } else {
+      cartPanelItems.innerHTML = cart.map((item, i) => {
+        const addonsText = item.addons.length > 0
+          ? item.addons.map((a) => `+ ${a.name} (${fmt(a.price)})`).join(", ")
+          : "";
+        return `<div class="cart-item">
+          <div class="cart-item__img">${item.img ? `<img src="${item.img}" alt="${item.name}" />` : `<div style="width:100%;height:100%;background:var(--graphite);display:grid;place-items:center;font-size:1.5rem">🍔</div>`}</div>
+          <div class="cart-item__info">
+            <div class="cart-item__name">${item.name}</div>
+            ${addonsText ? `<div class="cart-item__addons">${addonsText}</div>` : ""}
+            <div class="cart-item__row">
+              <div class="cart-item__qty">
+                <button class="cart-item__qty-btn cart-item__qty-minus" data-cart-idx="${i}" aria-label="Diminuir">−</button>
+                <span class="cart-item__qty-num">${item.quantity}</span>
+                <button class="cart-item__qty-btn cart-item__qty-plus" data-cart-idx="${i}" aria-label="Aumentar">+</button>
+                <button class="cart-item__qty-btn cart-item__qty-btn--remove" data-cart-idx="${i}" data-cart-remove aria-label="Remover item">✕</button>
+              </div>
+              <span class="cart-item__price">${fmt(itemTotal(item))}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join("");
+    }
+    cartPanelTotal.textContent = fmt(cartTotal());
+  }
+
+  function renderCardButtons() {
+    document.querySelectorAll<HTMLElement>(".card__order").forEach((wrap) => {
+      const id = wrap.dataset.id!;
+      const qtyEl = wrap.querySelector<HTMLElement>(".card__qty")!;
+      const numEl = wrap.querySelector<HTMLElement>(".card__qty-num")!;
+      const totalInCart = cart
+        .filter((c) => c.id === id)
+        .reduce((s, c) => s + c.quantity, 0);
+      if (totalInCart > 0) {
+        qtyEl.hidden = false;
+        numEl.textContent = String(totalInCart);
+      } else {
+        qtyEl.hidden = true;
+        numEl.textContent = "0";
+      }
+    });
+  }
+
+  function renderDrinkButtons() {
+    document.querySelectorAll<HTMLElement>(".drinks__list li[data-id]").forEach((li) => {
+      const id = li.dataset.id!;
+      const existing = li.querySelector<HTMLElement>(".drink-qty");
+      const btn = li.querySelector<HTMLElement>(".btn-drink-add");
+      const totalInCart = cart.filter((c) => c.id === id).reduce((s, c) => s + c.quantity, 0);
+      if (totalInCart > 0) {
+        if (btn) btn.style.display = "none";
+        if (!existing) {
+          const div = document.createElement("div");
+          div.className = "drink-qty";
+          div.innerHTML = `<button class="drink-qty-btn drink-qty-minus" data-cart-drink-minus="${id}" aria-label="Diminuir">−</button>
+            <span class="drink-qty-num">${totalInCart}</span>
+            <button class="drink-qty-btn drink-qty-plus" data-cart-drink-plus="${id}" aria-label="Aumentar">+</button>`;
+          li.appendChild(div);
+        } else {
+          const numEl = existing.querySelector<HTMLElement>(".drink-qty-num")!;
+          numEl.textContent = String(totalInCart);
+        }
+      } else {
+        if (btn) btn.style.display = "";
+        if (existing) existing.remove();
+      }
+    });
+  }
+
+  /* ── Event delegation: Cardápio "+" buttons ────────────── */
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+
+    // Botão "+" nos cards (abre modal de adicionais)
+    const addBtn = target.closest(".btn--add");
+    if (addBtn) {
+      const wrap = addBtn.closest<HTMLElement>(".card__order");
+      if (wrap) {
+        e.preventDefault();
+        openAddonModal(
+          wrap.dataset.id!,
+          wrap.dataset.name!,
+          Number(wrap.dataset.price) || 0,
+          wrap.dataset.img || "",
+          wrap.dataset.addons || "",
+          wrap.closest<HTMLElement>(".card__body")?.querySelector<HTMLElement>(".card__desc")?.textContent || undefined
+        );
+      }
+      return;
+    }
+
+    // Botão "+" nas bebidas (adiciona direto)
+    if (target.closest(".btn-drink-add")) {
+      const li = target.closest<HTMLElement>("li[data-id]");
+      if (li) {
+        addToCart(li.dataset.id!, li.dataset.name!, Number(li.dataset.price) || 0, "", [], 1);
+      }
+      return;
+    }
+
+    // Qty minus nos cards do cardápio
+    const cardMinus = target.closest<HTMLElement>(".card__qty-minus");
+    if (cardMinus) {
+      const wrap = cardMinus.closest<HTMLElement>(".card__order");
+      if (wrap) {
+        const id = wrap.dataset.id!;
+        const idx = cart.findIndex((c) => c.id === id && c.addons.length === 0);
+        if (idx >= 0) updateCartQty(idx, -1);
+      }
+      return;
+    }
+
+    // Qty plus nos cards do cardápio
+    const cardPlus = target.closest<HTMLElement>(".card__qty-plus");
+    if (cardPlus) {
+      const wrap = cardPlus.closest<HTMLElement>(".card__order");
+      if (wrap) {
+        const id = wrap.dataset.id!;
+        const name = wrap.dataset.name!;
+        const price = Number(wrap.dataset.price) || 0;
+        const img = wrap.dataset.img || "";
+        const idx = cart.findIndex((c) => c.id === id && c.addons.length === 0);
+        if (idx >= 0) {
+          cart[idx].quantity++;
+          saveCart();
+          renderAll();
+        } else {
+          addToCart(id, name, price, img, [], 1);
+        }
+      }
+      return;
+    }
+
+    // Drink qty minus
+    const drinkMinus = target.closest<HTMLElement>("[data-cart-drink-minus]");
+    if (drinkMinus) {
+      const id = drinkMinus.dataset.cartDrinkMinus!;
+      const idx = cart.findIndex((c) => c.id === id);
+      if (idx >= 0) updateCartQty(idx, -1);
+      return;
+    }
+
+    // Drink qty plus
+    const drinkPlus = target.closest<HTMLElement>("[data-cart-drink-plus]");
+    if (drinkPlus) {
+      const id = drinkPlus.dataset.cartDrinkPlus!;
+      const li = document.querySelector<HTMLElement>(`li[data-id="${id}"]`);
+      if (li) {
+        const name = li.dataset.name!;
+        const price = Number(li.dataset.price) || 0;
+        const idx = cart.findIndex((c) => c.id === id);
+        if (idx >= 0) {
+          cart[idx].quantity++;
+          saveCart();
+          renderAll();
+        } else {
+          addToCart(id, name, price, "", [], 1);
+        }
+      }
+      return;
+    }
+
+    // Carrinho: qty minus
+    const cartMinus = target.closest<HTMLElement>(".cart-item__qty-minus");
+    if (cartMinus) {
+      const idx = Number(cartMinus.dataset.cartIdx);
+      updateCartQty(idx, -1);
+      return;
+    }
+
+    // Carrinho: qty plus
+    const cartPlus = target.closest<HTMLElement>(".cart-item__qty-plus");
+    if (cartPlus) {
+      const idx = Number(cartPlus.dataset.cartIdx);
+      cart[idx].quantity++;
+      saveCart();
+      renderAll();
+      return;
+    }
+
+    // Carrinho: remover item
+    const cartRemove = target.closest<HTMLElement>("[data-cart-remove]");
+    if (cartRemove) {
+      const idx = Number(cartRemove.dataset.cartIdx);
+      removeCartItem(idx);
+      return;
+    }
+  });
+
+  /* ── Carrinho Panel ───────────────────────────────────── */
+  cartBarOpen.addEventListener("click", () => {
+    cartPanel.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  });
+
+  function closeCartPanel() {
+    cartPanel.classList.remove("is-open");
+    document.body.style.overflow = "";
+  }
+  cartPanelClose.addEventListener("click", closeCartPanel);
+  cartPanelOverlay.addEventListener("click", closeCartPanel);
+
+  /* ── Checkout ─────────────────────────────────────────── */
+  cartPanelCheckout.addEventListener("click", () => {
+    closeCartPanel();
+    setTimeout(() => {
+      renderCheckoutSummary();
+      checkoutModal.hidden = false;
+      requestAnimationFrame(() => checkoutModal.classList.add("is-open"));
+    }, 400);
+  });
+
+  function closeCheckoutModal() {
+    checkoutModal.classList.remove("is-open");
+    setTimeout(() => { checkoutModal.hidden = true; }, 350);
+  }
+  checkoutModalClose.addEventListener("click", closeCheckoutModal);
+  checkoutModal.addEventListener("click", (e) => {
+    if (e.target === checkoutModal) closeCheckoutModal();
+  });
+
+  function renderCheckoutSummary() {
+    checkoutSummary.innerHTML = cart.map((item) => {
+      const addonsText = item.addons.length > 0
+        ? item.addons.map((a) => `+ ${a.name}`).join(", ")
+        : "";
+      return `<div class="checkout-summary__item">
+        <span class="checkout-summary__item-name">
+          ${item.quantity}x ${item.name}
+          ${addonsText ? `<small>${addonsText}</small>` : ""}
+        </span>
+        <span class="checkout-summary__item-price">${fmt(itemTotal(item))}</span>
+      </div>`;
+    }).join("") + `<div class="checkout-summary__total">
+      <span>Total</span><strong>${fmt(cartTotal())}</strong>
+    </div>`;
+  }
+
+  checkoutForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(checkoutForm);
+    const name = (fd.get("name") as string).trim();
+    const address = (fd.get("address") as string).trim();
+    const payment = fd.get("payment") as string;
+    const notes = (fd.get("notes") as string || "").trim();
+    if (!name || !address || !payment) return;
+
+    const msg = buildWhatsAppMessage(name, address, payment, notes);
+    window.open(WHATS_BASE + encodeURIComponent(msg), "_blank");
+
+    // Limpar carrinho e fechar
+    cart.length = 0;
+    saveCart();
+    renderAll();
+    checkoutForm.reset();
+    closeCheckoutModal();
+  });
+
+  function buildWhatsAppMessage(
+    name: string, address: string, payment: string, notes: string
+  ): string {
+    const lines: string[] = [];
+    lines.push("🍟 *Pedido Viking's Burguer*");
+    lines.push("");
+    lines.push(`👤 ${name}`);
+    lines.push(`📍 ${address}`);
+    lines.push("");
+    lines.push("━━━━━━━━━━━━━━━━");
+
+    cart.forEach((item) => {
+      lines.push(`🍔 *${item.name}*`);
+      if (item.addons.length > 0) {
+        item.addons.forEach((a) => {
+          lines.push(`   + ${a.name}`);
+        });
+      }
+      lines.push(`   Qtd: ${item.quantity}`);
+      lines.push("");
+    });
+
+    lines.push("━━━━━━━━━━━━━━━━");
+    lines.push("");
+    lines.push(`💳 Pagamento: ${payment}`);
+    if (notes) lines.push(`📝 Obs: ${notes}`);
+
+    return lines.join("\n");
+  }
+
+  /* ── Init: render state on load ──────────────────────── */
+  renderAll();
 
   /* ── Ano do rodapé ────────────────────────────────────── */
   const year = document.getElementById("year");
