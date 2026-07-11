@@ -1085,6 +1085,28 @@ section .section__kicker:has(+ .section__title--center) { text-align: center; }
   border-radius: 999px;
 }
 
+.combo__media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  position: relative;
+  margin: -2.2rem -2.2rem 1.6rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.combo__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.combo:hover .combo__media img { transform: scale(1.06); }
+.combo__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(10, 10, 10, 0.7));
+  pointer-events: none;
+}
+
 .combo__head {
   display: flex;
   align-items: center;
