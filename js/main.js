@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 /* ═══════════════════════════════════════════════════════════
    VIKING'S BURGUER — Motion & Interações (TypeScript)
    GSAP + ScrollTrigger · Lenis (scroll suave) · AOS · Canvas
@@ -776,14 +776,17 @@
     }
     function renderCartBar() {
         const count = cartCount();
+        const whatsFloat = document.querySelector(".whats-float");
         if (count > 0) {
             cartBar.hidden = false;
             cartBar.classList.add("is-visible");
             cartBarCount.textContent = `${count} ${count === 1 ? "item" : "itens"}`;
             cartBarTotal.textContent = fmt(cartTotal());
+            if (whatsFloat) whatsFloat.classList.add("whats-float--raised");
         }
         else {
             cartBar.classList.remove("is-visible");
+            if (whatsFloat) whatsFloat.classList.remove("whats-float--raised");
             setTimeout(() => { cartBar.hidden = true; }, 450);
         }
     }
