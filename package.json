@@ -1,7 +1,7 @@
 {
-  "name": "vikings-burguer",
+  "name": "valhalla-burguer",
   "version": "1.0.0",
-  "description": "Landing page premium da Viking's Burguer — hambúrguer artesanal em Leme/SP",
+  "description": "Landing page premium da Valhalla Burguer — Hamburgueria artesanal nórdica",
   "private": true,
   "type": "module",
   "scripts": {

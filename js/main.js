@@ -1,6 +1,6 @@
-﻿"use strict";
+"use strict";
 /* ═══════════════════════════════════════════════════════════
-   VIKING'S BURGUER — Motion & Interações (TypeScript)
+   VALHALLA BURGUER — Motion & Interações (TypeScript)
    GSAP + ScrollTrigger · Lenis (scroll suave) · AOS · Canvas
    Compilado para js/main.js  (npm run build)
    ═══════════════════════════════════════════════════════════ */
@@ -554,7 +554,7 @@
             iframe.loading = "lazy";
             iframe.allowFullscreen = true;
             iframe.referrerPolicy = "no-referrer-when-downgrade";
-            iframe.title = "Mapa — Viking's Burguer, R. André Luiz 281, Leme/SP";
+            iframe.title = "Mapa — Valhalla Burguer, Av. dos Guerreiros 777, São Paulo/SP";
             mapContainer.replaceChildren(iframe);
         };
         if ("IntersectionObserver" in window) {
@@ -570,9 +570,9 @@
             loadMap();
         }
     }
-    const WHATS_NUMBER = "5519996979642";
+    const WHATS_NUMBER = "5511998765432";
     const WHATS_BASE = `https://wa.me/${WHATS_NUMBER}?text=`;
-    const CART_KEY = "vikings-cart";
+    const CART_KEY = "valhalla-cart";
     const cart = loadCart();
     /* ── Helpers ─────────────────────────────────────────── */
     function fmt(v) {
@@ -782,11 +782,13 @@
             cartBar.classList.add("is-visible");
             cartBarCount.textContent = `${count} ${count === 1 ? "item" : "itens"}`;
             cartBarTotal.textContent = fmt(cartTotal());
-            if (whatsFloat) whatsFloat.classList.add("whats-float--raised");
+            if (whatsFloat)
+                whatsFloat.classList.add("whats-float--raised");
         }
         else {
             cartBar.classList.remove("is-visible");
-            if (whatsFloat) whatsFloat.classList.remove("whats-float--raised");
+            if (whatsFloat)
+                whatsFloat.classList.remove("whats-float--raised");
             setTimeout(() => { cartBar.hidden = true; }, 450);
         }
     }
@@ -1040,7 +1042,7 @@
     });
     function buildWhatsAppMessage(name, address, payment, notes) {
         const lines = [];
-        lines.push("🍟 *Pedido Viking's Burguer*");
+        lines.push("🍟 *Pedido Valhalla Burguer*");
         lines.push("");
         lines.push(`👤 ${name}`);
         lines.push(`📍 ${address}`);

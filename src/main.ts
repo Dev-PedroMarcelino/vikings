@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   VIKING'S BURGUER — Motion & Interações (TypeScript)
+   VALHALLA BURGUER — Motion & Interações (TypeScript)
    GSAP + ScrollTrigger · Lenis (scroll suave) · AOS · Canvas
    Compilado para js/main.js  (npm run build)
    ═══════════════════════════════════════════════════════════ */
@@ -617,7 +617,7 @@
       iframe.loading = "lazy";
       iframe.allowFullscreen = true;
       iframe.referrerPolicy = "no-referrer-when-downgrade";
-      iframe.title = "Mapa — Viking's Burguer, R. André Luiz 281, Leme/SP";
+      iframe.title = "Mapa — Valhalla Burguer, Av. dos Guerreiros 777, São Paulo/SP";
       mapContainer.replaceChildren(iframe);
     };
     if ("IntersectionObserver" in window) {
@@ -648,9 +648,9 @@
     img: string;
   }
 
-  const WHATS_NUMBER = "5519996979642";
+  const WHATS_NUMBER = "5511998765432";
   const WHATS_BASE = `https://wa.me/${WHATS_NUMBER}?text=`;
-  const CART_KEY = "vikings-cart";
+  const CART_KEY = "valhalla-cart";
   const cart: CartItem[] = loadCart();
 
   /* ── Helpers ─────────────────────────────────────────── */
@@ -1143,7 +1143,7 @@
     name: string, address: string, payment: string, notes: string
   ): string {
     const lines: string[] = [];
-    lines.push("🍟 *Pedido Viking's Burguer*");
+    lines.push("🍟 *Pedido Valhalla Burguer*");
     lines.push("");
     lines.push(`👤 ${name}`);
     lines.push(`📍 ${address}`);

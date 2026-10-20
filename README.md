@@ -1,6 +1,6 @@
-# Viking's Burguer — Landing Page
+# Valhalla Burguer — Landing Page
 
-Landing page premium da Viking's Burguer (Leme/SP). HTML semântico, CSS moderno e
+Landing page premium da Valhalla Burguer — Hamburgueria Artesanal Nórdica. HTML semântico, CSS moderno e
 **TypeScript** para toda a interatividade.
 
 ## Estrutura
